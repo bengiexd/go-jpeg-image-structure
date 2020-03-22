@@ -463,6 +463,8 @@ func (sl *SegmentList) Write(w io.Writer) (err error) {
 	offset := 0
 
 	for i, s := range sl.segments {
+		fmt.Printf("Write segment (%d)\n", i)
+
 		h := sha1.New()
 		h.Write(s.Data)
 
@@ -499,6 +501,8 @@ func (sl *SegmentList) Write(w io.Writer) (err error) {
 				log.Panicf("not a supported marker-size: SEGMENT-INDEX=(%d) MARKER-ID=(0x%02x) MARKER-SIZE-LEN=(%d)", i, s.MarkerId, sizeLen)
 			}
 		}
+
+		fmt.Printf("Write data (%d)\n", len(s.Data))
 
 		_, err := w.Write(s.Data)
 		log.PanicIf(err)
@@ -592,14 +596,18 @@ func (js *JpegSplitter) readSegment(data []byte) (count int, err error) {
 	defer func() {
 		if state := recover(); state != nil {
 			err = log.Wrap(state.(error))
+			fmt.Printf("readSegment: ERR: [%s]\n", err.Error())
 		}
 	}()
+
+	fmt.Printf("readSegment: lastMarkerId=[%s]\n", markerNames[js.lastMarkerId])
 
 	if js.counter == 0 {
 		// Verify magic bytes.
 
 		if len(data) < 3 {
 			jpegLogger.Debugf(nil, "Not enough (1)")
+			fmt.Printf("readSegment: Returning 1\n")
 			return 0, nil
 		}
 
@@ -638,6 +646,8 @@ func (js *JpegSplitter) readSegment(data []byte) (count int, err error) {
 		// parse because the file-structure is, technically, complete at this
 		// point.
 
+		fmt.Printf("readSegment: Returning (lastMarkerId == EOF)\n")
+		fmt.Printf("readSegment: Returning 2\n")
 		return 0, io.EOF
 	} else {
 		js.lastIsScanData = false
@@ -665,6 +675,7 @@ func (js *JpegSplitter) readSegment(data []byte) (count int, err error) {
 
 	if found == false || i >= chunkLength {
 		jpegLogger.Debugf(nil, "Not enough (3)")
+		fmt.Printf("readSegment: Returning 3\n")
 		return 0, nil
 	}
 
@@ -673,6 +684,8 @@ func (js *JpegSplitter) readSegment(data []byte) (count int, err error) {
 	jpegLogger.Debugf(nil, "MARKER-ID=%x", markerId)
 
 	js.lastMarkerName = markerNames[markerId]
+
+	fmt.Printf("readSegment: currentMarker=[%s]\n", js.lastMarkerName)
 
 	sizeLen, found := markerLen[markerId]
 	jpegLogger.Debugf(nil, "MARKER-ID=%x SIZELEN=%v FOUND=%v", markerId, sizeLen, found)
@@ -696,6 +709,7 @@ func (js *JpegSplitter) readSegment(data []byte) (count int, err error) {
 
 		if i+2 >= chunkLength {
 			jpegLogger.Debugf(nil, "Not enough (4)")
+			fmt.Printf("readSegment: Returning 4\n")
 			return 0, nil
 		}
 
@@ -727,6 +741,7 @@ func (js *JpegSplitter) readSegment(data []byte) (count int, err error) {
 
 		if i+4 >= chunkLength {
 			jpegLogger.Debugf(nil, "Not enough (5)")
+			fmt.Printf("readSegment: Returning 5\n")
 			return 0, nil
 		}
 
@@ -752,6 +767,7 @@ func (js *JpegSplitter) readSegment(data []byte) (count int, err error) {
 
 	if i > chunkLength {
 		jpegLogger.Debugf(nil, "Not enough (6)")
+		fmt.Printf("readSegment: Returning 6\n")
 		return 0, nil
 	}
 
@@ -767,6 +783,7 @@ func (js *JpegSplitter) readSegment(data []byte) (count int, err error) {
 
 	jpegLogger.Debugf(nil, "Returning advance of (%d)", i)
 
+	fmt.Printf("readSegment: Returning 7\n")
 	return i, nil
 }
 
@@ -782,6 +799,7 @@ func (js *JpegSplitter) Split(data []byte, atEOF bool) (advance int, token []byt
 		if err != nil {
 			if err == io.EOF {
 				// We've encountered an EOI marker.
+				fmt.Printf("Split: Returning 1\n")
 				return 0, nil, err
 			}
 
@@ -797,6 +815,7 @@ func (js *JpegSplitter) Split(data []byte, atEOF bool) (advance int, token []byt
 		advance += currentAdvance
 	}
 
+	fmt.Printf("Split: Returning 2. ADVANCE=(%d)\n", advance)
 	return advance, nil, nil
 }
 
